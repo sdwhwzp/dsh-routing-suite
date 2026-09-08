@@ -296,7 +296,7 @@ window.__ModuleLoader__.load({
         e("button", { onClick: onClose, style: { fontSize: "12px", padding: "2px 10px", marginLeft: "8px" } }, "关闭"))
     }
 
-    function ProgressBadge() {
+    function ProgressBadge({ sessionId }) {
       const [st, setSt] = useState(null)
       const [open, setOpen] = useState(false)
       const [settings, setSettings] = useState(false)
@@ -309,9 +309,9 @@ window.__ModuleLoader__.load({
       }, [])
       // 会话锁定：首次成功显示后 localStorage 记忆（多会话并发时徽章不再随“最近活跃”漂移）；
       // 面板“会话”下拉切换=显式更新锁定
-      const lockKey = "graded.lock.sid"
+      const lockKey = "graded.lock.sid." + sessionId
       const getLocked = () => { try { return localStorage.getItem(lockKey) } catch { return null } }
-      const sk = getLocked()
+      const sk = sessionId
       useEffect(() => {
         let alive = true
         const qs = sk ? "?sid=" + encodeURIComponent(sk) : ""

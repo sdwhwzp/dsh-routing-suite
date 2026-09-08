@@ -145,9 +145,14 @@ export function classifyTask(text) {
   return 'weak'
 }
 
+/** Read durable events through the current or legacy Session API. */
+export function sessionEvents(session) {
+  return typeof session.snapshotEvents === 'function' ? session.snapshotEvents() : session.events
+}
+
 /** Per-session mode derived from durable events (resume-safe). */
 export function sessionMode(session) {
-  const events = session.events
+  const events = sessionEvents(session)
   const userMsg = events.find((e) => e.type === 'user/message')
   return classifyTask(extractText(userMsg?.data))
 }

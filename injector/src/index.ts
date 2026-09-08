@@ -21,13 +21,13 @@
  *  - 官方 HMR 对 bundle 插件不生效（node_modules 排除 + root:[]），本插件补上。
  */
 
-import { Context } from 'cordis'
+import { Context } from '@deepseek-ai/cordis'
 import type Loader from '@deepseek-ai/cordis-plugin-loader'
 import type SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import type ToolRegistry from '@deepseek-ai/dsh-tools'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import z from 'schemastery'
-import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, symlinkSync, rmdirSync, appendFileSync, renameSync, lstatSync, rmSync, readlinkSync, realpathSync } from 'node:fs'
+import z from '@deepseek-ai/schemastery'
+import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, symlinkSync, unlinkSync, appendFileSync, renameSync, lstatSync, rmSync, readlinkSync, realpathSync } from 'node:fs'
 import { join, relative, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -153,9 +153,9 @@ function scaffoldToolkitSrc(pkgName: string, description: string): string {
  *    首轮请求结构决定整条会话的策略轨迹，锚定在训练对齐的窄工具面再放开，能力不损。
  *    启用方法见 apply() 末尾的注释块。
  */
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import z from 'schemastery'
+import z from '@deepseek-ai/schemastery'
 
 export const name = ${JSON.stringify(pkgName)}
 export const inject = ['tools']
@@ -210,13 +210,13 @@ function scaffoldDaemonSrc(pkgName: string, description: string): string {
  * 小 agent loop：timer 驱动自主循环 → 观察 → LLM 决策 → 行动 → 再睡。
  * 插件自身的提示词/循环参数皆可自我优化（改 → build → dev_reload_package）。
  */
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import type LlmService from '@deepseek-ai/dsh-llm'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
-import z from 'schemastery'
+import z from '@deepseek-ai/schemastery'
 
 type AppContext = Context & {
   llm: LlmService
@@ -317,9 +317,9 @@ function scaffoldUiSrc(pkgName: string, description: string): string {
  * host 侧：工具 + webServer API；client 侧：conversation.view slot 面板。
  * 构建：npm run build（host tsc）+ npm run build:client（tsdown → lib/client.js）。
  */
-import type { Context } from 'cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import z from 'schemastery'
+import z from '@deepseek-ai/schemastery'
 
 export const name = ${JSON.stringify(pkgName)}
 export const inject = ['tools', 'webServer']
@@ -492,7 +492,7 @@ type AppContext = Context & {
 }
 
 export const name = 'dsh-super-injector'
-export const inject = ['loader', 'timer', 'tools', 'systemPrompt', 'webServer']
+export const inject = ['loader', 'timer', 'tools', 'systemPrompt', 'webServer', 'connection']
 
 export interface Config {
   /** 注入清单文件路径（缺省 ~/.dsh/super-injector/registry.json）。 */
@@ -2030,13 +2030,13 @@ export function apply(ctx: AppContext, config: Config): void {
       writeRegistry(after)
       steps.push('registry 已清理')
     }
-    // 3. junction 删除（用完整包名构建路径；rmdir 只删链接不删目标）
+    // Remove the Profile link without following it to the plugin source.
     if (fullName && !allowSelf) {
       const parts = fullName.startsWith('@') ? fullName.split('/') : [fullName]
       const linkDir = join(profileNodeModules, ...parts)
       try {
         if (existsSync(linkDir)) {
-          rmdirSync(linkDir)
+          unlinkSync(linkDir)
           steps.push('junction 已删除: ' + linkDir)
         } else {
           steps.push('（junction 不存在）')
@@ -2230,7 +2230,7 @@ export function apply(ctx: AppContext, config: Config): void {
         const linkPath = join(linkDir, scope ? name.split('/')[1] as string : name)
         if (!isHealthyLink(linkPath)) {
           try {
-            if (existsSync(linkPath)) rmdirSync(linkPath)
+            if (existsSync(linkPath)) unlinkSync(linkPath)
           } catch { /* 坏链接删除失败忽略 */ }
           try {
             mkdirSync(linkDir, { recursive: true })
@@ -2360,6 +2360,11 @@ export function apply(ctx: AppContext, config: Config): void {
   // 工具的僵尸闭包」（实测：锁永久卡死、新代码永不生效的根因）。
   function safeRegister(tool: any): void {
     try {
+      const execute = tool.execute
+      tool = { ...tool, async execute(args: unknown, execution: { principal?: { role: string } }) {
+        if (execution?.principal?.role !== 'admin') throw new Error('Plugin management requires an authenticated administrator')
+        return execute(args, execution)
+      } }
       ctx.effect(() => ctx.tools.register(tool), `dsh-super-injector: ${tool.name ?? 'tool'}`)
     } catch (e) {
       logger.warn('[super-injector] 跳过冲突工具注册: %s', e instanceof Error ? e.message : String(e))
@@ -3046,7 +3051,7 @@ export function apply(ctx: AppContext, config: Config): void {
           scripts: { build: 'bash scripts/build.sh' },
         }, null, 2) + '\n', 'utf8')
         writeFileSync(join(tmpDir, 'tsconfig.json'), '{\n  "compilerOptions": {\n    "target": "ES2023", "module": "NodeNext", "moduleResolution": "NodeNext", "lib": ["ES2023"],\n    "strict": true, "types": ["node"], "declaration": true, "declarationDir": "lib/types",\n    "outDir": "lib", "rootDir": "src", "skipLibCheck": true, "esModuleInterop": true,\n    "sourceMap": true\n  },\n  "include": ["src"]\n}\n', 'utf8')
-        writeFileSync(join(tmpDir, 'src', 'index.ts'), `import type { Context } from 'cordis'\nimport { defineTool } from '@deepseek-ai/dsh-tools'\nexport const name = ${JSON.stringify(TEST_PKG)}\nexport const inject = ['tools']\nexport function apply(ctx: Context): void {\n  ctx.effect(() => ctx.tools.register(defineTool({\n    name: 'self_test_hello',\n    description: 'self test',\n    parameters: {},\n    output: { schema: { type: 'string' }, render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }] },\n    async execute() { return 'hello' },\n  })), 'self-test')\n}\n`, 'utf8')
+        writeFileSync(join(tmpDir, 'src', 'index.ts'), `import type { Context } from '@deepseek-ai/cordis'\nimport { defineTool } from '@deepseek-ai/dsh-tools'\nexport const name = ${JSON.stringify(TEST_PKG)}\nexport const inject = ['tools']\nexport function apply(ctx: Context): void {\n  ctx.effect(() => ctx.tools.register(defineTool({\n    name: 'self_test_hello',\n    description: 'self test',\n    parameters: {},\n    output: { schema: { type: 'string' }, render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }] },\n    async execute() { return 'hello' },\n  })), 'self-test')\n}\n`, 'utf8')
         writeFileSync(join(tmpDir, 'scripts', 'build.sh'), `#!/bin/bash\nset -euo pipefail\nROOT="$(cd "$(dirname "$0")/.." && pwd)"\ncd "$ROOT"\nCHECKOUT="\${DSH_CHECKOUT:-}"\nif [ -z "$CHECKOUT" ] || [ ! -d "$CHECKOUT/packages" ]; then echo "no checkout" >&2; exit 1; fi\nTSC="$CHECKOUT/node_modules/.bin/tsc"\nlink_pkg() {\n  node -e "const fs=require('fs');const path=require('path');const l=path.resolve(process.argv[1]);const t=path.resolve(process.argv[2]);fs.rmSync(l,{recursive:true,force:true});fs.mkdirSync(path.dirname(l),{recursive:true});fs.symlinkSync(t,l,process.platform==='win32'?'junction':'dir');" "node_modules/$1" "$2"\n}\nmkdir -p node_modules/@deepseek-ai\nnode -e "const fs=require('fs');fs.rmSync('node_modules/@standard-schema',{recursive:true,force:true})"\nlink_pkg cordis "$CHECKOUT/vendor/cordis"\nlink_pkg cosmokit "$CHECKOUT/vendor/cosmokit"\nlink_pkg schemastery "$CHECKOUT/vendor/schemastery"\nlink_pkg @deepseek-ai/dsh-tools "$CHECKOUT/packages/core/tools"\nlink_pkg @types/node "$CHECKOUT/node_modules/@types/node"\n"$TSC" -p tsconfig.json\n`, 'utf8')
         const checkout = detectCheckout()
         if (!checkout) { check('checkout 探测', false, '无 DSH_CHECKOUT'); return summarize(results) }
@@ -3287,6 +3292,9 @@ export function apply(ctx: AppContext, config: Config): void {
         res.end(JSON.stringify(obj))
       }
       try {
+        const connection = ctx.get('connection') as { authorizeRequest(req: unknown): Promise<{ accepted: boolean; principal?: { role: string } }> }
+        const authorization = await connection.authorizeRequest(req)
+        if (!authorization.accepted || authorization.principal?.role !== 'admin') return send(403, { ok: false, error: 'Administrator access required' })
         const url = new URL(req.url ?? '/', 'http://localhost')
         const path = url.pathname.replace(/^\/super-injector\/api/, '') || '/'
         if (req.method === 'GET' && path === '/list') {

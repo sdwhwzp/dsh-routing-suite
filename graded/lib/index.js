@@ -56,7 +56,7 @@ import { phaseL1, phaseL2, reviewPendingText, approvedToDevelop, approvedKickoff
 import z from '@deepseek-ai/schemastery'
 
 export const name = 'dsh-graded-mode'
-export const inject = ['commands', 'userQuestions', 'webServer', 'tools']
+export const inject = ['commands', 'userQuestions', 'webServer', 'tools', 'connection']
 export const Config = z.object({}) // 无配置项；cordis loader 要求 schema 形态
 
 function userMsg(text) {
@@ -140,6 +140,31 @@ export function auditBody(state) {
 }
 
 export function apply(ctx, config) {
+  function registerApi(route) {
+    const handler = route.handler
+    return ctx.webServer.register({ ...route, handler: async (req, res) => {
+      const reject = () => { res.writeHead(403, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: false, error: 'Session access denied' })) }
+      try {
+        const auth = await ctx.connection.authorizeRequest(req)
+        if (!auth.accepted || !auth.principal) return reject()
+        const url = new URL(req.url, 'http://localhost')
+        const sid = url.searchParams.get('sid')
+        if (auth.principal.role !== 'admin') {
+          if (url.pathname.endsWith('/sessions')) return reject()
+          if (!sid && !(url.pathname.endsWith('/settings') && req.method === 'GET')) return reject()
+          if (req.method !== 'GET' && url.searchParams.get('scope') !== 'session') return reject()
+          if (sid) {
+            const access = ctx.get('principalAccess')
+            if (!access) return reject()
+            const allowed = await access.resolve(auth.principal, { sessionIds: [sid] })
+            if (!allowed.readableSessionIds.has(sid)) return reject()
+          }
+        }
+        return handler(req, res)
+      } catch { return reject() }
+    } })
+  }
+
   let activeSid = null // 最近活跃 sid（完成情况面板 API 用；会话级单实例足够）
 
   /* ---------- 状态：磁盘单轨（无内存副本——双注根因:双轨快照不一致） ---------- */
@@ -230,7 +255,7 @@ export function apply(ctx, config) {
   }
 
   ctx.effect(() => {
-    const d = ctx.webServer.register({
+    const d = registerApi({
       kind: 'prefix',
       path: '/graded-mode/api/settings',
       handler: async (req, res) => {
@@ -270,14 +295,19 @@ export function apply(ctx, config) {
   })
 
   ctx.effect(() => {
-    const d = ctx.webServer.register({
+    const d = registerApi({
       kind: 'prefix',
       path: '/graded-mode/api/sessions',
       handler: async (_req, res) => {
         // 全部盘档会话清单（面板下拉切换用）——mtime 降序
         try {
           const dir = join(process.env.DSH_HOME || defaultDshHome(), 'graded-state')
-          const list = readdirSync(dir).filter((f) => /^session-[\w-]+\.json$/.test(f))
+          let files
+          try { files = readdirSync(dir) } catch (error) {
+            if (error.code !== 'ENOENT') throw error
+            files = []
+          }
+          const list = files.filter((f) => /^session-[\w-]+\.json$/.test(f))
             .map((f) => { const id = f.replace(/\.json$/, ''); const s = state(id) || initMode(); return { sid: id, stage: s.stage, task: (s.task || '').slice(0, 40), mtime: statSync(join(dir, f)).mtimeMs } })
             .sort((a, b) => b.mtime - a.mtime)
           res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
@@ -292,7 +322,7 @@ export function apply(ctx, config) {
   })
 
   ctx.effect(() => {
-    const d = ctx.webServer.register({
+    const d = registerApi({
       kind: 'prefix',
       path: '/graded-mode/api',
       handler: async (_req, res) => {
@@ -312,7 +342,7 @@ export function apply(ctx, config) {
 
   /* ---------- 审计端点（/api/audit：注入计数/指纹/红队——检测类任务一眼可见） ---------- */
   ctx.effect(() => {
-    const d = ctx.webServer.register({
+    const d = registerApi({
       kind: 'prefix',
       path: '/graded-mode/api/audit',
       handler: async (_req, res) => {

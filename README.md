@@ -102,3 +102,7 @@ Copy-Item -Recurse .\preset\router-spec $target
 ## 许可证
 
 MIT。致谢：xiaobright/modeltest（V4.1b 评测）、xiaobright/dsh-anchored-standard（锚定机制）。
+
+## Private Harness alpha deployment
+
+The private `20260908` builds target Harness `0.1.3-alpha.1`. Install the Injector and Graded tarballs as Profile bundles, and place the three Router directories under `$DSH_HOME/.agent-presets/`. Select Router Standard, React, or Spec when creating a session. Activate the staged planning workflow with `/graded <task>`. Plugin management requires an authenticated administrator; Graded session data respects session ownership.
