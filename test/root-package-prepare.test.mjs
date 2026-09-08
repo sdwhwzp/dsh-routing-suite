@@ -41,6 +41,11 @@ test('the prepared injector entry points are included in the package', () => {
 
   try {
     mkdirSync(join(fixture, 'injector', 'lib'), { recursive: true })
+    mkdirSync(join(fixture, 'injector', 'scripts'), { recursive: true })
+    copyFileSync(
+      join(repoRoot, 'injector', 'scripts', 'prepare.mjs'),
+      join(fixture, 'injector', 'scripts', 'prepare.mjs'),
+    )
     copyFileSync(join(repoRoot, 'package.json'), join(fixture, 'package.json'))
     copyFileSync(join(repoRoot, 'injector', '.gitignore'), join(fixture, 'injector', '.gitignore'))
 
@@ -53,7 +58,7 @@ test('the prepared injector entry points are included in the package', () => {
     writeFileSync(join(fixture, 'injector', 'lib', 'client.js'), '')
 
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    const result = spawnSync(npm, ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+    const result = spawnSync(npm, ['pack', '--dry-run', '--json', '--ignore-scripts', '--foreground-scripts=false'], {
       cwd: fixture,
       encoding: 'utf8',
       shell: process.platform === 'win32',
@@ -63,6 +68,7 @@ test('the prepared injector entry points are included in the package', () => {
     const paths = JSON.parse(result.stdout)[0].files.map(({ path }) => path)
     assert.ok(paths.includes('injector/lib/index.js'), 'package omits injector/lib/index.js')
     assert.ok(paths.includes('injector/lib/client.js'), 'package omits injector/lib/client.js')
+    assert.ok(paths.includes('injector/scripts/prepare.mjs'), 'package omits its prepare hook')
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }
