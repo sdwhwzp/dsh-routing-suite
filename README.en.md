@@ -1,5 +1,7 @@
 # dsh-routing-suite — Injector × Reasoning-Mode Routing × Graded Mode Suite
 
+Graded-mode messages and router guidance use producer source kinds for Session V4. Mode selection and first-task discovery read human messages only; plugin guidance cannot replace the user task.
+
 One repository for the full stack: the **runtime injector** (restart-free plugin
 management) plus the **reasoning-mode routing presets** (task-aware reasoning-mode
 routing, measured P1-P23) plus the **graded task protocol** (brainstorm quiz →

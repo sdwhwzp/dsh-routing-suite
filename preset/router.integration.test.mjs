@@ -143,7 +143,7 @@ test('phase_begin injects the bootstrap guide exactly once and persists guided (
   const first = await begin.execute()
   assert.match(String(first), /session started/)
   assert.equal(appends.length, 1, 'bootstrap guide appended once')
-  assert.equal(appends[0].source.plugin, 'router-bootstrap')
+  assert.equal(appends[0].source.kind, 'plugin:router-bootstrap')
   assert.match(appends[0].content[0].text, /Bootstrap \(once per session\)/)
   const again = await begin.execute()
   assert.match(String(again), /already started/)
@@ -380,7 +380,7 @@ test('resume: a guide already in the durable transcript is never injected twice'
   const m = userMessage('m9', '今天天气怎么样')
   const session = makeSession([
     { type: 'user/message', data: m },
-    { type: 'user/message', data: { id: 'router-guide-m9', role: 'user', source: { kind: 'plugin', plugin: 'router-bootstrap' }, content: [{ type: 'text', text: 'guide' }] } },
+    { type: 'user/message', data: { id: 'router-guide-m9', role: 'user', source: { kind: 'plugin:router-bootstrap' }, content: [{ type: 'text', text: 'guide' }] } },
   ])
   const agent = { session, options: { provider: 'deepseek-official', model: 'deepseek-v4-flash' } }
   h.agentRef.current = agent

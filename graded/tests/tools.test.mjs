@@ -1,4 +1,4 @@
-import { test, beforeEach } from 'node:test'
+import { test, beforeEach, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -9,6 +9,7 @@ import { initMode, trigger, onCommitStar, onEditL1, onLockL1, onEditL2, onLockL2
 // 测试级状态目录（磁盘权威：execute 直读写盘）
 const TMP = mkdtempSync(join(tmpdir(), 'graded-test-'))
 process.env.DSH_HOME = TMP
+after(() => rmSync(TMP, { recursive: true, force: true }))
 beforeEach(() => { try { rmSync(stateFileFor('sid-1'), { force: true }) } catch { /* 幂等 */ } })
 
 /** 3.1 起步：脑暴定稿（commit_star）后进入 l1-edit。 */
@@ -319,4 +320,18 @@ test('mark_task: 仅 develop/final 可用;标定推进焦点', async () => {
   assert.equal(deps.getState().plan.groups[0].items[1].status, 'pending')
   // 未知标题被拒
   await assert.rejects(() => run(mark, deps, { level: 'L2', title: '不存在', status: 'completed' }), /不在计划树里/)
+})
+
+test('locking a stage steers a producer-attributed message', async () => {
+  const { deps } = makeHarness()
+  deps.setState(deps.getState(), begin('任务'))
+  await run(editPlanDefinition(deps), deps, { level: 'L1', items: [{ title: '分析', spec: '任务', accept: ['标准'] }] })
+  const messages = []
+  await lockStageDefinition(deps).execute({ level: 'L1' }, {
+    agent: { session: { id: 'sid-1', events: [] }, steer: message => messages.push(message) },
+  })
+  assert.equal(messages.length, 1)
+  assert.deepEqual(messages[0].source, { kind: 'plugin:dsh-graded-mode' })
+  assert.equal(messages[0].role, 'user')
+  assert.ok(messages[0].content[0].text.length > 0)
 })

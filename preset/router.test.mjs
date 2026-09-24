@@ -175,6 +175,9 @@ test('v1.19.1: firstUserTask echoes the first real user message (guiding, not ga
   const mk = (src, text) => ({ id: 'a', role: 'user', source: src, content: [{ type: 'text', text }] })
   assert.equal(firstUserTask({ events: [{ type: 'user/message', data: mk({ kind: 'user' }, '做一个马里奥游戏') }] }), '做一个马里奥游戏')
   assert.equal(firstUserTask({ events: [{ type: 'user/message', data: mk({ kind: 'plugin', plugin: 'x' }, 'approval') }] }), '', 'plugin-origin messages are not the task')
+  for (const kind of ['plugin:router-bootstrap', 'runtime-context', 'skill-catalog']) {
+    assert.equal(firstUserTask({ events: [{ type: 'user/message', data: mk({ kind }, 'guidance') }, { type: 'user/message', data: mk({ kind: 'user' }, 'user task') }] }), 'user task')
+  }
   assert.equal(firstUserTask({ events: [{ type: 'user/message', data: mk({ kind: 'user' }, 'x'.repeat(200)) }] }).length, 161, 'truncates to 160 + ellipsis')
 })
 
