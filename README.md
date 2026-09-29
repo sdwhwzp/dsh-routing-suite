@@ -110,3 +110,5 @@ MIT。致谢：xiaobright/modeltest（V4.1b 评测）、xiaobright/dsh-anchored-
 The private `20260908` builds target Harness `0.1.3-alpha.1`. Install the Injector and Graded tarballs as Profile bundles, and place the three Router directories under `$DSH_HOME/.agent-presets/`. Select Router Standard, React, or Spec when creating a session. Activate the staged planning workflow with `/graded <task>`. Plugin management requires an authenticated administrator; Graded session data respects session ownership.
 
 The Injector scaffolds and self-test builds use the scoped Cordis, Cosmokit, and Schemastery packages. Stale Loader entries are removed through the synchronous API in Harness 0.1.6-alpha.2.
+
+本 fork 的注入器分发包支持 Harness `0.2.0-rc.1`，部署时从同一个运行时解析 Harness 依赖。

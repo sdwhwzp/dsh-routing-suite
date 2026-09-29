@@ -96,3 +96,5 @@ directory is `preset/router-standard` (flat, no extra nesting).
 ## License
 
 MIT. Credits: xiaobright/modeltest (V4.1b evaluation), xiaobright/dsh-anchored-standard (anchoring mechanism).
+
+The fork distribution accepts Harness `0.2.0-rc.1`; resolve every Harness dependency from the same runtime release.
