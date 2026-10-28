@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/dsh-super-injector",
-  "version": "0.3.3-dsh.20260929.1",
-  "description": "超级模组注入器：运行时注入任意本地 DSH 插件包（junction 链接 + loader.create，不碰 patch/package.json/不重启），热重载全家桶 + 开发侧挂区一键转正 + 一键卸载 + 路由自愈 + 插件管理 UI（设置页：列表/卸载/拖入内化），清单持久化重启自动恢复——DSH 生态的 BepInEx 式模组注入入口",
+  "version": "0.3.3-dsh.20261028.1",
+  "description": "\u8d85\u7ea7\u6a21\u7ec4\u6ce8\u5165\u5668\uff1a\u8fd0\u884c\u65f6\u6ce8\u5165\u4efb\u610f\u672c\u5730 DSH \u63d2\u4ef6\u5305\uff08junction \u94fe\u63a5 + loader.create\uff0c\u4e0d\u78b0 patch/package.json/\u4e0d\u91cd\u542f\uff09\uff0c\u70ed\u91cd\u8f7d\u5168\u5bb6\u6876 + \u5f00\u53d1\u4fa7\u6302\u533a\u4e00\u952e\u8f6c\u6b63 + \u4e00\u952e\u5378\u8f7d + \u8def\u7531\u81ea\u6108 + \u63d2\u4ef6\u7ba1\u7406 UI\uff08\u8bbe\u7f6e\u9875\uff1a\u5217\u8868/\u5378\u8f7d/\u62d6\u5165\u5185\u5316\uff09\uff0c\u6e05\u5355\u6301\u4e45\u5316\u91cd\u542f\u81ea\u52a8\u6062\u590d\u2014\u2014DSH \u751f\u6001\u7684 BepInEx \u5f0f\u6a21\u7ec4\u6ce8\u5165\u5165\u53e3",
   "private": true,
   "type": "module",
   "main": "./lib/index.js",
@@ -37,9 +37,9 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": ">=0.0.1-rc <2",
-    "@deepseek-ai/cordis": ">=4.0.0-rc <5",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/dsh-tools": ">=0.0.1-rc <2 || ^0.2.2-alpha.2",
+    "@deepseek-ai/cordis": ">=4.0.0-rc <5 || ^4.0.6-alpha.1",
+    "@deepseek-ai/schemastery": "^3.18.2 || ^3.18.6-alpha.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "^1.0.2",
